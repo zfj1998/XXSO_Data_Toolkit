@@ -1,0 +1,5 @@
+xmltodict==0.12.0
+ipdb==0.13.4
+tqdm==4.56.0
+elasticsearch>=7.0.0,<8.0.0
+nltk==3.5
