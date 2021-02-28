@@ -15,7 +15,7 @@ DOC_TYPE = 'python' # elastic表名
 FAILED_RECORD = 'failed.txt' # 上传失败的记录文件
 BULK_SIZE = 100 # 批量上传的条数
 TOTAL_SIZE = 1597777 # 要上传的数据总量
-HOST = 'localhost' # elastic数据库ip地址
+HOST = '192.168.0.105' # elastic数据库ip地址
 
 def get_connection():
     es = Elasticsearch(f"http://{HOST}:9200")
