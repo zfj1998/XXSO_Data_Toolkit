@@ -73,7 +73,7 @@ def query_index(es, field, support_str):
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
-    query_index(es, 'title', 'how to format python string based on byte length ?')
+    query_index(es, 'title', 'how to format python string based on byte length')
     # for_line_in("data/xml-data/with_python_tag_all.xml", TOTAL_SIZE, BULK_SIZE, upload, es)
 
     
