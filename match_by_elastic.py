@@ -68,35 +68,29 @@ def query_index(es, field, support_str):
             'score': hit['_score'],
             field: hit['_source'][field]
         } for hit in top_three]
-    # logger.info(top_three_simple)
+    logger.info(top_three_simple)
     return top_three_simple
 
 def query_file(es,read_file_path,write_file_path):
     """
     查询指定文件的所有标题，并把排名前三的结果写入json
     """
-    linedex=1
     with open(read_file_path, mode='r', encoding='utf-8') as fr:
         with open(write_file_path,mode="w",encoding="utf-8") as fw:
             for line in fr:
                 line_dict = {} 
                 line_dict["title"] = line
                 line_dict["top_three_simple"] = query_index(es,"title",line)
+                line_json = json.dumps(line_dict)
 
-                # 这里补充字符串转换操作，在字典里加相应的东西
-
-                json.dump(line_dict,fw)
-                linedex+=1
-                if linedex%100==0:
-                    print(linedex)
-            print('done,total:')
-            print(linedex)
-
+                fw.write(line_json + '\n') 
+            fw.close()
 
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
-    query_file(es,"./raw_data/tgt-train.txt","./matcheddata/tgt-train.json")
+    query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/csharpdata/tgt-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/tgt-train.json")
+
     # query_index(es, 'title', 'how to format python string based on byte length ?')
     # for_line_in("data/xml-data/with_python_tag_all.xml", TOTAL_SIZE, BULK_SIZE, upload, es)
 
