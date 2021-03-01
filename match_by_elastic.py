@@ -87,7 +87,7 @@ def query_file(es,read_file_path,write_file_path):
 
                 json.dump(line_dict,fw)
                 linedex+=1
-                if linedex%100=0:
+                if linedex%100==0:
                     print(linedex)
             print('done,total:')
             print(linedex)
