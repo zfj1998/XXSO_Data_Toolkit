@@ -1,6 +1,7 @@
 import ipdb
 import xmltodict
 import html
+import json
 from elasticsearch import Elasticsearch, helpers
 from logging import config,getLogger
 
@@ -70,10 +71,27 @@ def query_index(es, field, support_str):
     logger.info(top_three_simple)
     return top_three_simple
 
+def query_file(es,read_file_path,write_file_path):
+    """
+    查询指定文件的所有标题，并把排名前三的结果写入json
+    """
+    with open(read_file_path, mode='r', encoding='utf-8') as fr:
+        with open(write_file_path,mode="w",encoding="utf-8") as fw:
+            for line in fr:
+                line_dict = {} 
+                line_dict["title"] = line
+                line_dict["top_three_simple"] = query_index(es,"title",line)
+
+                # 这里补充字符串转换操作，在字典里加相应的东西
+
+                json.dump(line_dict,fw)
+
+
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
-    query_index(es, 'title', 'how to format python string based on byte length ?')
+    query_file(es,"~/sdb2_zzm/Code2Que-master/data_sample/tgt-train.txt","~/sdb2_zzm/Code2Que-master/data_sample/tgt-train.json")
+    # query_index(es, 'title', 'how to format python string based on byte length ?')
     # for_line_in("data/xml-data/with_python_tag_all.xml", TOTAL_SIZE, BULK_SIZE, upload, es)
 
     

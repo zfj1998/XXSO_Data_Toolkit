@@ -35,6 +35,8 @@ def append_file(data):
     with open(file_path, mode='a', encoding='utf-8') as f:
         f.writelines(content_with_line_feed)
 
+
+
 # def async_for_line_in(file_path, length, func):
 #     '''
 #     废弃不用
