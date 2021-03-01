@@ -90,7 +90,7 @@ def query_file(es,read_file_path,write_file_path):
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
-    query_file(es,"./data/tgt-train.txt","./matcheddata/tgt-train.json")
+    query_file(es,"./raw_data/tgt-train.txt","./matcheddata/tgt-train.json")
     # query_index(es, 'title', 'how to format python string based on byte length ?')
     # for_line_in("data/xml-data/with_python_tag_all.xml", TOTAL_SIZE, BULK_SIZE, upload, es)
 
