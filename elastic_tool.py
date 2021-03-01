@@ -89,11 +89,8 @@ def query_file(es,read_file_path,write_file_path):
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
-    query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/csharpdata/tgt-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/csharpdata/tgt-train.json")
-    query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/csharpdata/tgt-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/javadata/tgt-train.json")
-    query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/csharpdata/tgt-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/jsdata/tgt-train.json")
     query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/csharpdata/tgt-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/tgt-train.json")
-    query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/csharpdata/tgt-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/sqldata/tgt-train.json")
+
     # query_index(es, 'title', 'how to format python string based on byte length ?')
     # for_line_in("data/xml-data/with_python_tag_all.xml", TOTAL_SIZE, BULK_SIZE, upload, es)
 
