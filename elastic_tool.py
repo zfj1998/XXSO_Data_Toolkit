@@ -2,6 +2,8 @@ import ipdb
 import xmltodict
 import html
 import json
+import linecache
+
 from elasticsearch import Elasticsearch, helpers
 from logging import config,getLogger
 
@@ -90,19 +92,18 @@ def query_jsonfile(es,read_file_path_json,read_file_path_code,write_file_path):
     读取json文件，并进行代码段匹配，把排名前三的写入json
     '''
     with open(read_file_path_json, mode='r', encoding='utf-8') as fr_json:
-        with open(read_file_path_code, mode='r', encoding='utf-8') as fr_code:
-            with open(write_file_path,mode="w",encoding="utf-8") as fw:
-                for line in fr_json:
-                    line_dict={} #用于生成json文件
-                    load_json = json.loads(line)
-                    line_index=load_json["linedex"]
-                    line_dict["code"] = fr_code.readlines[line_index-1]
-                    line_dict["top_three_simple"] = query_index(es,"body",line_dict["code"])
-                    line_dict["line_index"] = line_index
+        with open(write_file_path,mode="w",encoding="utf-8") as fw:
+            for line in fr_json:
+                line_dict={} #用于生成json文件
+                load_json = json.loads(line)
+                line_index=load_json["linedex"]
+                line_dict["code"] = linecache.getline(read_file_path_code, line_index)
+                line_dict["top_three_simple"] = query_index(es,"body",line_dict["code"])
+                line_dict["line_index"] = line_index
 
-                    line_json = json.dumps(line_dict)
-                    fw.write(line_json+"\n")
-                fw.close()
+                line_json = json.dumps(line_dict)
+                fw.write(line_json+"\n")
+            fw.close()
 
 if __name__ == '__main__':
     es = get_connection()
