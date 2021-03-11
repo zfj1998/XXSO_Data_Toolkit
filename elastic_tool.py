@@ -81,8 +81,11 @@ def query_file(es,read_file_path,write_file_path):
         with open(write_file_path,mode="w",encoding="utf-8") as fw:
             for line in fr:
                 line_dict = {} 
-                line_dict["title"] = line
-                line_dict["top_three_simple"] = query_index(es,"title",line)
+                # line_dict["title"] = line
+                line_dict["code"] = line
+                # line_dict["top_three_simple"] = query_index(es,"title",line)
+                line_dict["top_three_simple"] = query_index(es,"body",line)
+
                 line_json = json.dumps(line_dict)
 
                 fw.write(line_json + '\n') 
@@ -108,8 +111,8 @@ def query_jsonfile(es,read_file_path_json,read_file_path_code,write_file_path):
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
-    # query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/tgt-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/tgt-train.json")
-    query_jsonfile(es,"notmatch-pytgt-train.json","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","notmatch-pysrc-train.json")
+    query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.json")
+    # query_jsonfile(es,"notmatch-pytgt-train.json","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","notmatch-pysrc-train.json")
     # query_index(es, 'title', 'how to format python string based on byte length ?')
     # for_line_in("data/xml-data/with_python_tag_all.xml", TOTAL_SIZE, BULK_SIZE, upload, es)
 
