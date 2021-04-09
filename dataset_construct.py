@@ -161,14 +161,16 @@ def time_counter(source_path, total_len):
     with open(source_path, 'r', encoding='utf-8') as f:
         t = tqdm(total=total_len)
         for line in f:
-            line_json = xmltodict.parse(line)
-            time_str = line_json['row']['@CreationDate']
+            # line_json = xmltodict.parse(line)
+            # time_str = line_json['row']['@CreationDate']
+            line_json = json.loads(line.strip())
+            time_str = line_json['@CreationDate']
             time_obj = datetime.datetime.strptime(time_str,'%Y-%m-%dT%H:%M:%S.%f')
-            by_month.append(time_obj.strftime('%Y-%m'))
+            # by_month.append(time_obj.strftime('%Y-%m'))
             by_year.append(time_obj.strftime('%Y'))
             t.update(1)
     t.close()
-    print(OrderedCounter(by_month))
+    # print(OrderedCounter(by_month))
     print(OrderedCounter(by_year))
 
 '''
@@ -258,11 +260,7 @@ class BodyParser(HTMLParser):
             denoised_content = self.denoising(item[1])
             if denoised_content:
                 cleaned_result.append((item[0], denoised_content))
-        # 删去不同时包含text和code的内容
-        tags = [item[0] for item in cleaned_result]
-        if ('code' in tags) and ('text' in tags):
-            return cleaned_result
-        return []
+        return cleaned_result
 
 def content_counter(source_path, total_len, language):
     '''
@@ -320,6 +318,9 @@ def content_extractor(source_path, target_path, total_len, language):
     # tokenizer = RobertaTokenizer.from_pretrained('microsoft/codebert-base', do_lower_case=False)
     with open(source_path, 'r', encoding='utf-8') as f:
         t = tqdm(total=total_len)
+        blank_lines = 0
+        only_code = 0
+        only_text = 0
         for line in f:
             t.update(1)
             line_json = xmltodict.parse(line)
@@ -327,9 +328,6 @@ def content_extractor(source_path, target_path, total_len, language):
             parser = BodyParser()
             parser.feed(body_str)
             line_parsed = parser.get_result()
-            if not line_parsed:
-                continue
-            line_json['row']['@Body'] = line_parsed
             # 移除和其他language重复的post
             language_tag_flag = False
             tags_raw = line_json['row']['@Tags']
@@ -338,6 +336,18 @@ def content_extractor(source_path, target_path, total_len, language):
                     language_tag_flag = True
             if language_tag_flag:
                 continue
+            # 删去不同时包含text和code的内容
+            if not line_parsed:
+                blank_lines += 1
+                continue
+            tags = [item[0] for item in line_parsed]
+            if ('code' in tags) and ('text' not in tags):
+                only_code += 1
+                continue
+            elif ('text' in tags) and ('code' not in tags):
+                only_text += 1
+                continue
+            line_json['row']['@Body'] = line_parsed
             # 删去分词后长度过短或过长的
             len_item = {
                 'total': 0,
@@ -352,6 +362,8 @@ def content_extractor(source_path, target_path, total_len, language):
             len_item['total'] = len_item['text'] + len_item['code']
             if len_item['total'] > 1000:
                 continue
+            raw_title = line_json['row']['@Title']
+            line_json['row']['@Title'] = ''.join([i if ord(i) < 128 else ' ' for i in raw_title])
             line_json_str = json.dumps(line_json['row'])
             result.append(f'{line_json_str}\n')
             if len(result) == BATCH_SIZE:
@@ -360,6 +372,7 @@ def content_extractor(source_path, target_path, total_len, language):
         t.close()
         if result:
             write_lines(result, target_path)
+        print(f'blank lines: {blank_lines}, only_code: {only_code}, only_text: {only_text}')
 
 def use_attr_extractor():
     language_all_path = './data/dataset/all/{}-all.xml'
@@ -370,20 +383,22 @@ def use_attr_extractor():
         # include_extractor(source_path, language_all_path.format(language), filters, total_lines)
     for language, total_lines in [
         # ('go', 50355), ('python', 1597777), ('c#', 1450789), ('php', 1381587), ('ruby', 216776), ('java', 1735380), ('javascript', 2130667)
-            ('java', 1735380)
+            ('python', 1597777)
         ]:
         '''统计语言文件的回答数分布'''
         print(f'------------{language}------------')
-        condition = lambda x: int(x['@Score']) >= 2 and '@AcceptedAnswerId' in x and '@ClosedDate' not in x and int(x['@AnswerCount']) >= 3
-        attr_extractor(language_all_path.format(language), './data/dataset/java-a3-s2.xml', condition, total_lines)
+        condition = lambda x: int(x['@Score']) >= 2 and '@AcceptedAnswerId' in x and '@ClosedDate' not in x and int(x['@AnswerCount']) >= 1
+        attr_extractor(language_all_path.format(language), './data/dataset/all/python-a1-s2.xml', condition, total_lines)
         # attr_counter(language_all_path.format(language), '@AnswerCount', total_lines, condition)
         # time_counter( './data/dataset/java-a3-s3-no-code.xml', 81123)
 
 def use_content_extractor():
-    source_path = './data/dataset/all/python-a3-s2.xml'
-    target_path = './data/dataset/all/python-a3-s2-len-lte-1000.jsonl'
-    python_lines = 79375
-    content_extractor(source_path, target_path, python_lines, 'python')
+    source_path = './data/dataset/all/python-a1-s2.xml'
+    target_path = './data/dataset/all/python-a1-s2-len-lte-1000-only-text.jsonl'
+    python_lines = 267717
+    # content_extractor(source_path, target_path, python_lines, 'python')
+    # 用于统计不包含代码的post数量
+    time_counter(target_path, 27093)
     # content_counter(source_path, python_lines, 'python')
     # source_path = './data/dataset/java-a3-s2.xml'
     # target_path = './data/dataset/java-a3-s2-without-len-limit.jsonl'
@@ -465,7 +480,48 @@ def construct_3_datasets(source_path, total_len):
         print("expected: {}-{}".format(len(valid_ids), len(test_ids)))
         print("{}-{}-{}".format(test_len, valid_len, train_len))
 
-def attr_counter(source_path, condition_func):
+def construct_3_datasets_by_date(source_path, total_len, start_line, end_line):
+    # 数据写入
+    train_path = source_path.replace('.jsonl', '.train.jsonl')
+    test_path = source_path.replace('.jsonl', '.test.jsonl')
+    valid_path = source_path.replace('.jsonl', '.valid.jsonl')
+
+    test_len = 0
+    valid_len = 0
+    train_len = 0
+
+    total_lines_for_test = end_line - start_line + 1
+    test_size = total_lines_for_test // 2
+    valid_size = total_lines_for_test - test_size
+    total_line_ids = np.arange(start_line, end_line+1)
+    test_ids = np.random.choice(total_line_ids, test_size, replace=False)
+    total_line_ids = set(total_line_ids)
+    test_ids = set(test_ids)
+    valid_ids = total_line_ids - test_ids
+
+    with open(source_path, 'r', encoding='utf-8') as f:
+        t = tqdm(total=total_len)
+        line_id = 1
+        write_path = None
+        for line in f:
+            t.update(1)
+            if line_id in test_ids:
+                test_len += 1
+                write_path = test_path
+            elif line_id in valid_ids:
+                valid_len += 1
+                write_path = valid_path
+            else:
+                train_len += 1
+                write_path = train_path
+            write_lines([line], write_path)
+            line_id += 1
+        t.close()
+        print("expected: {}-{}".format(len(valid_ids), len(test_ids)))
+        print("{}-{}-{}".format(test_len, valid_len, train_len))
+
+
+def attr_counter_2(source_path, condition_func):
     '''
     读取jsonl文件
     文件行数以及关心数据的行数
@@ -481,7 +537,7 @@ def attr_counter(source_path, condition_func):
     print(f'{source_path} conditioned {condition_count} lines')
 
 def interrogative_counter():
-    source_path = './data/dataset/all/java-a3-s2.jsonl'
+    source_path = './data/dataset/all/python-a3-s2-len-lte-1000.jsonl'
     def function(json_data):
         target = ['how', 'what', 'why', 'which', 'when']
         title = json_data['@Title'].lower()
@@ -489,15 +545,18 @@ def interrogative_counter():
             if i in title:
                 return True
         return False
-    attr_counter(source_path, function)
+    attr_counter_2(source_path, function)
 
 if __name__ == '__main__':
     # use_content_extractor()
+    # use_attr_extractor()
     # source_path = './data/dataset/all/java-a3-s2.jsonl'
     # java_lines = 63056
     # construct_3_datasets(source_path, java_lines)
+    construct_3_datasets_by_date('./data/dataset/all/python-a1-s2-len-lte-1000.jsonl', 225906, 211537, 225906)
     source_path = './data/dataset/all/python-a3-s2-len-lte-1000.jsonl'
     python_lines = 66439
-    construct_3_datasets(source_path, python_lines)
+    # construct_3_datasets(source_path, python_lines)
     # token_len_counter(source_path, python_lines)
+    # interrogative_counter()
     
