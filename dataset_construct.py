@@ -1,3 +1,10 @@
+'''
+构造数据集，主要包括两个函数
+1. attr_extractor
+主要用于过滤优质问题，输入输出都是xml文件
+2. content_extractor
+主要用于过滤不符合文本+代码、长度要求、和其它tag重复的内容，输入为xml，输出为json
+'''
 import xmltodict
 import ipdb
 import datetime
@@ -375,6 +382,9 @@ def content_extractor(source_path, target_path, total_len, language):
         print(f'blank lines: {blank_lines}, only_code: {only_code}, only_text: {only_text}')
 
 def use_attr_extractor():
+    '''
+    主要用于过滤优质问题，输入输出都是xml文件
+    '''
     language_all_path = './data/dataset/all/{}-all.xml'
     # for language in ['go', 'javascript', 'python', 'c#', 'php', 'ruby', 'java']:
     #     '''按条件抽取并新建文件'''
@@ -383,27 +393,30 @@ def use_attr_extractor():
         # include_extractor(source_path, language_all_path.format(language), filters, total_lines)
     for language, total_lines in [
         # ('go', 50355), ('python', 1597777), ('c#', 1450789), ('php', 1381587), ('ruby', 216776), ('java', 1735380), ('javascript', 2130667)
-            ('python', 1597777)
+            ('java', 1735380)
         ]:
         '''统计语言文件的回答数分布'''
         print(f'------------{language}------------')
         condition = lambda x: int(x['@Score']) >= 2 and '@AcceptedAnswerId' in x and '@ClosedDate' not in x and int(x['@AnswerCount']) >= 1
-        attr_extractor(language_all_path.format(language), './data/dataset/all/python-a1-s2.xml', condition, total_lines)
+        attr_extractor(language_all_path.format(language), './data/dataset/all/java-a1-s2.xml', condition, total_lines)
         # attr_counter(language_all_path.format(language), '@AnswerCount', total_lines, condition)
         # time_counter( './data/dataset/java-a3-s3-no-code.xml', 81123)
 
 def use_content_extractor():
-    source_path = './data/dataset/all/python-a1-s2.xml'
-    target_path = './data/dataset/all/python-a1-s2-len-lte-1000-only-text.jsonl'
-    python_lines = 267717
+    '''
+    主要用于过滤不符合文本+代码、长度要求、和其它tag重复的内容，输入为xml，输出为json
+    '''
+    # source_path = './data/dataset/all/python-a1-s2.xml'
+    # target_path = './data/dataset/all/python-a1-s2-len-lte-1000-only-text.jsonl'
+    # python_lines = 267717
     # content_extractor(source_path, target_path, python_lines, 'python')
-    # 用于统计不包含代码的post数量
-    time_counter(target_path, 27093)
+    # 用于统计不包含代码的post数量随时间分布规律
+    # time_counter(target_path, 27093)
     # content_counter(source_path, python_lines, 'python')
-    # source_path = './data/dataset/java-a3-s2.xml'
-    # target_path = './data/dataset/java-a3-s2-without-len-limit.jsonl'
-    # java_lines = 104111
-    # content_extractor(source_path, target_path, java_lines, 'java')
+    source_path = './data/dataset/all/java-a1-s2.xml'
+    target_path = './data/dataset/all/java-a1-s2-len-lte1000.jsonl'
+    java_lines = 276047
+    content_extractor(source_path, target_path, java_lines, 'java')
 
 def token_len_counter(source_path, total_len):
     '''
@@ -445,7 +458,9 @@ def token_len_counter(source_path, total_len):
 
 def construct_3_datasets(source_path, total_len):
     # 得到各类数据集的行号
-    test_size = total_len // 10
+    # test_size = total_len // 10
+    test_size = 2000
+    np.random.seed(999)
     total_line_ids = np.arange(total_len)
     test_ids = np.random.choice(total_line_ids, test_size, replace=False)
     total_line_ids = np.setdiff1d(total_line_ids, test_ids)
@@ -481,7 +496,7 @@ def construct_3_datasets(source_path, total_len):
         print("{}-{}-{}".format(test_len, valid_len, train_len))
 
 def construct_3_datasets_by_date(source_path, total_len, start_line, end_line):
-    # 数据写入
+    # 数据写入，source_path是json文件
     train_path = source_path.replace('.jsonl', '.train.jsonl')
     test_path = source_path.replace('.jsonl', '.test.jsonl')
     valid_path = source_path.replace('.jsonl', '.valid.jsonl')
@@ -548,12 +563,13 @@ def interrogative_counter():
     attr_counter_2(source_path, function)
 
 if __name__ == '__main__':
-    # use_content_extractor()
+    use_content_extractor()
     # use_attr_extractor()
-    # source_path = './data/dataset/all/java-a3-s2.jsonl'
+    source_path = './data/dataset/all/python-a1-s2-len-lte-1000-match-gao-code-only.jsonl'
+    # source_path = './data/dataset/all/python-a1-s2-len-lte-1000-match-gao.jsonl'
     # java_lines = 63056
-    # construct_3_datasets(source_path, java_lines)
-    construct_3_datasets_by_date('./data/dataset/all/python-a1-s2-len-lte-1000.jsonl', 225906, 211537, 225906)
+    # construct_3_datasets(source_path, 38013)
+    # construct_3_datasets_by_date('./data/dataset/all/python-a1-s2-len-lte-1000.jsonl', 225906, 211537, 225906)
     source_path = './data/dataset/all/python-a3-s2-len-lte-1000.jsonl'
     python_lines = 66439
     # construct_3_datasets(source_path, python_lines)

@@ -5,20 +5,24 @@ import json
 import linecache
 
 from elasticsearch import Elasticsearch, helpers
-from logging import config,getLogger
+from logging import config, getLogger
+from tqdm import tqdm
 
 from log_config import LOGGING_DIC
 from file_helper import for_line_in, append_file
+from other_utils import split_things, compare_str
 
 config.dictConfig(LOGGING_DIC)
 # logger = getLogger('production') # 生产环境使用的logger，输出内容到文件
 logger = getLogger('console_info') # 测试使用的logger，输出内容到终端
-INDEX_NAME = 'so_posts_all' # elastic数据库名称
-DOC_TYPE = 'python' # elastic表名
+# INDEX_NAME = 'so_posts_all' # elastic数据库名称
+INDEX_NAME = 'java_a1s2_lte1000' # elastic数据库名称
+DOC_TYPE = 'java' # elastic表名
 FAILED_RECORD = 'failed.txt' # 上传失败的记录文件
 BULK_SIZE = 100 # 批量上传的条数
-TOTAL_SIZE = 1597777 # 要上传的数据总量
-HOST = '192.168.0.105' # elastic数据库ip地址
+# TOTAL_SIZE = 1597777 # 要上传的数据总量
+TOTAL_SIZE = 200746 # 要上传的数据总量
+HOST = '192.168.40.250' # elastic数据库ip地址
 
 def get_connection():
     es = Elasticsearch(f"http://{HOST}:9200")
@@ -31,8 +35,8 @@ def initialize(es):
     result = es.indices.create(index=INDEX_NAME, ignore=400)
     logger.info(result)
 
-def upload(lines, es):
-    '''上传文档，单进程批量版'''
+def upload_xml(lines, es):
+    '''上传文档，单进程批量xml版'''
     bulk_actions = []
     for line in lines:
         line_json = xmltodict.parse(line)
@@ -43,6 +47,28 @@ def upload(lines, es):
             '_source': {
                 'title': line_json['row']['@Title'],
                 'body': html.unescape(line_json['row']['@Body'])
+            }
+        }
+        bulk_actions.append(action)
+    result = helpers.bulk(es, bulk_actions, ignore=409)
+    first_id = bulk_actions[0]['_id']
+    last_id = bulk_actions[-1]['_id']
+    logger.info(f'lines with identifiers from {first_id} to {last_id} have been successfully uploaded')
+
+def upload_json(lines, es):
+    '''上传文档，单进程批量json版'''
+    bulk_actions = []
+    for line in lines:
+        line_json = json.loads(line.strip())
+        title = ' '.join(split_things(line_json['@Title'], False, False))
+        body = ' '.join(split_things(line_json['@Body'], False, False))
+        action = {
+            '_index': INDEX_NAME,
+            '_type': DOC_TYPE,
+            '_id': int(line_json['@Id']),
+            '_source': {
+                'title': title,
+                'body': body
             }
         }
         bulk_actions.append(action)
@@ -70,7 +96,7 @@ def query_index(es, field, support_str):
             'score': hit['_score'],
             field: hit['_source'][field]
         } for hit in top_three]
-    logger.info(top_three_simple)
+    # logger.info(top_three_simple)
     return top_three_simple
 
 def query_file(es,read_file_path,write_file_path):
@@ -90,6 +116,7 @@ def query_file(es,read_file_path,write_file_path):
 
                 fw.write(line_json + '\n') 
             fw.close()
+
 def query_jsonfile(es,read_file_path_json,read_file_path_code,write_file_path):
     '''
     读取json文件，并进行代码段匹配，把排名前三的写入json
@@ -106,17 +133,46 @@ def query_jsonfile(es,read_file_path_json,read_file_path_code,write_file_path):
 
                 line_json = json.dumps(line_dict)
                 fw.write(line_json+"\n")
-            fw.close()
+
+def match_and_write(es, source_path, target_path, length):
+    '''
+    查询数据库，把排名第一且token重复率超过90%的写入文件
+    '''
+    t = tqdm(total=length)
+    with open(source_path, mode='r', encoding='utf-8') as r_f,\
+        open(target_path, mode='w', encoding='utf-8') as w_f:
+        line_no = 0
+        existed_id = set()
+        for line in r_f:
+            # r_f为Gao的txt文件
+            line_no += 1
+            title = line.strip()
+            top_1 = query_index(es, 'title', title)[0]
+            t.update(1)
+            line_dict = {}
+            line_dict['score'] = top_1['score']
+            line_dict['zfj-id'] = top_1['id']
+            if line_dict['zfj-id'] in existed_id:
+                continue
+            existed_id.add(line_dict['zfj-id'])
+            line_dict['gao-lino'] = line_no
+            line_dict['gao-title'] = title
+            line_dict['zfj-title'] = top_1['title']
+            if not compare_str(line_dict['gao-title'], line_dict['zfj-title']):
+                # n_f.write(f'{line_no}\n')
+                continue
+            w_f.write(json.dumps(line_dict, ensure_ascii=False)+'\n')
+    t.close()
 
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
-    query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.json")
+    # query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.json")
     # query_jsonfile(es,"notmatch-pytgt-train.json","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","notmatch-pysrc-train.json")
-    # query_index(es, 'title', 'how to format python string based on byte length ?')
-    # for_line_in("data/xml-data/with_python_tag_all.xml", TOTAL_SIZE, BULK_SIZE, upload, es)
-
-    
+    # query_index(es, 'title', 'how to check set of files conform to a naming scheme')
+    # query_index(es, 'body', 'how to check set of files conform to a naming scheme')
+    for_line_in("data/dataset/all/java-a1-s2-len-lte-1000.jsonl", TOTAL_SIZE, BULK_SIZE, upload_json, es)
+    # match_and_write(es, "data/Gao/python/tgt-train-test.txt", "data/Gao/python/a1s2_matched_tgt_train.trust.jsonl", 189936)
 
 
 # def upload_self_es(line):

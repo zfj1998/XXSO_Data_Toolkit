@@ -40,7 +40,7 @@ LOGGING_DIC = {
     'handlers': {
         # 打印到终端的日志
         'console': {
-            'level': 'INFO',
+            'level': 'ERROR',
             'class': 'logging.StreamHandler',  # 打印到屏幕
             'formatter': 'simple'
         },
@@ -73,7 +73,7 @@ LOGGING_DIC = {
         },
         'console_info': {
             'handlers': ['console'],  # 产生的日志丢给console
-            'level': 'INFO',  # loggers(第一层日志级别关限制)--->handlers(第二层日志级别关卡限制)
+            'level': 'ERROR',  # loggers(第一层日志级别关限制)--->handlers(第二层日志级别关卡限制)
             'propagate': False,  # 默认为True，向上（更高level的logger）传递，通常设置为False即可，否则会一份日志向上层层传递
         },
         '': {
