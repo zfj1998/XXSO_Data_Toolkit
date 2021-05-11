@@ -397,8 +397,8 @@ def use_attr_extractor():
         ]:
         '''统计语言文件的回答数分布'''
         print(f'------------{language}------------')
-        condition = lambda x: int(x['@Score']) >= 2 and '@AcceptedAnswerId' in x and '@ClosedDate' not in x and int(x['@AnswerCount']) >= 1
-        attr_extractor(language_all_path.format(language), './data/dataset/all/java-a1-s2.xml', condition, total_lines)
+        condition = lambda x: int(x['@Score']) >= 1 and '@AcceptedAnswerId' in x and '@ClosedDate' not in x and int(x['@AnswerCount']) >= 1
+        attr_extractor(language_all_path.format(language), './data/dataset/all/java-a1-s1.xml', condition, total_lines)
         # attr_counter(language_all_path.format(language), '@AnswerCount', total_lines, condition)
         # time_counter( './data/dataset/java-a3-s3-no-code.xml', 81123)
 
@@ -413,9 +413,9 @@ def use_content_extractor():
     # 用于统计不包含代码的post数量随时间分布规律
     # time_counter(target_path, 27093)
     # content_counter(source_path, python_lines, 'python')
-    source_path = './data/dataset/all/java-a1-s2.xml'
-    target_path = './data/dataset/all/java-a1-s2-len-lte1000.jsonl'
-    java_lines = 276047
+    source_path = './data/dataset/all/java-a1-s1.xml'
+    target_path = './data/dataset/all/java-a1-s1-len-lte-1000.jsonl'
+    java_lines = 462244
     content_extractor(source_path, target_path, java_lines, 'java')
 
 def token_len_counter(source_path, total_len):
@@ -459,11 +459,13 @@ def token_len_counter(source_path, total_len):
 def construct_3_datasets(source_path, total_len):
     # 得到各类数据集的行号
     # test_size = total_len // 10
+    total_size = 40000
     test_size = 2000
     np.random.seed(999)
     total_line_ids = np.arange(total_len)
-    test_ids = np.random.choice(total_line_ids, test_size, replace=False)
-    total_line_ids = np.setdiff1d(total_line_ids, test_ids)
+    total_line_ids_new = np.random.choice(total_line_ids, total_size, replace=False)
+    test_ids = np.random.choice(total_line_ids_new, test_size, replace=False)
+    total_line_ids = np.setdiff1d(total_line_ids_new, test_ids)
     valid_ids = np.random.choice(total_line_ids, test_size, replace=False)
     # 数据写入
     train_path = source_path.replace('.jsonl', '.train.jsonl')
@@ -473,12 +475,11 @@ def construct_3_datasets(source_path, total_len):
     test_len = 0
     valid_len = 0
     train_len = 0
-
     with open(source_path, 'r', encoding='utf-8') as f:
         t = tqdm(total=total_len)
         line_id = 0
-        write_path = None
         for line in f:
+            write_path = None
             t.update(1)
             if line_id in test_ids:
                 test_len += 1
@@ -486,9 +487,12 @@ def construct_3_datasets(source_path, total_len):
             elif line_id in valid_ids:
                 valid_len += 1
                 write_path = valid_path
-            else:
+            elif line_id in total_line_ids_new:
                 train_len += 1
                 write_path = train_path
+            else:
+                line_id += 1
+                continue
             write_lines([line], write_path)
             line_id += 1
         t.close()
@@ -563,12 +567,12 @@ def interrogative_counter():
     attr_counter_2(source_path, function)
 
 if __name__ == '__main__':
-    use_content_extractor()
+    # use_content_extractor()
     # use_attr_extractor()
-    source_path = './data/dataset/all/python-a1-s2-len-lte-1000-match-gao-code-only.jsonl'
-    # source_path = './data/dataset/all/python-a1-s2-len-lte-1000-match-gao.jsonl'
+    source_path = './data/dataset/all/java-a1-s1-len-lte-1000-match-gao-code-only.jsonl'
+    # source_path = './data/dataset/all/java-a1-s1-len-lte-1000-match-gao.jsonl'
     # java_lines = 63056
-    # construct_3_datasets(source_path, 38013)
+    # construct_3_datasets(source_path, 54289)
     # construct_3_datasets_by_date('./data/dataset/all/python-a1-s2-len-lte-1000.jsonl', 225906, 211537, 225906)
     source_path = './data/dataset/all/python-a3-s2-len-lte-1000.jsonl'
     python_lines = 66439

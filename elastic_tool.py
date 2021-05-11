@@ -16,12 +16,12 @@ config.dictConfig(LOGGING_DIC)
 # logger = getLogger('production') # 生产环境使用的logger，输出内容到文件
 logger = getLogger('console_info') # 测试使用的logger，输出内容到终端
 # INDEX_NAME = 'so_posts_all' # elastic数据库名称
-INDEX_NAME = 'java_a1s2_lte1000' # elastic数据库名称
+INDEX_NAME = 'java_a1s1_lte1000' # elastic数据库名称
 DOC_TYPE = 'java' # elastic表名
 FAILED_RECORD = 'failed.txt' # 上传失败的记录文件
 BULK_SIZE = 100 # 批量上传的条数
 # TOTAL_SIZE = 1597777 # 要上传的数据总量
-TOTAL_SIZE = 200746 # 要上传的数据总量
+TOTAL_SIZE = 339395 # 要上传的数据总量
 HOST = '192.168.40.250' # elastic数据库ip地址
 
 def get_connection():
@@ -136,7 +136,7 @@ def query_jsonfile(es,read_file_path_json,read_file_path_code,write_file_path):
 
 def match_and_write(es, source_path, target_path, length):
     '''
-    查询数据库，把排名第一且token重复率超过90%的写入文件
+    查询数据库，把排名第一且token重复率超过99%的写入文件
     '''
     t = tqdm(total=length)
     with open(source_path, mode='r', encoding='utf-8') as r_f,\
@@ -171,8 +171,9 @@ if __name__ == '__main__':
     # query_jsonfile(es,"notmatch-pytgt-train.json","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","notmatch-pysrc-train.json")
     # query_index(es, 'title', 'how to check set of files conform to a naming scheme')
     # query_index(es, 'body', 'how to check set of files conform to a naming scheme')
-    for_line_in("data/dataset/all/java-a1-s2-len-lte-1000.jsonl", TOTAL_SIZE, BULK_SIZE, upload_json, es)
+    # for_line_in("data/dataset/all/java-a1-s1-len-lte-1000.jsonl", TOTAL_SIZE, BULK_SIZE, upload_json, es)
     # match_and_write(es, "data/Gao/python/tgt-train-test.txt", "data/Gao/python/a1s2_matched_tgt_train.trust.jsonl", 189936)
+    match_and_write(es, "data/Gao/java/tgt-train-test.txt", "data/Gao/java/a1s1_matched_tgt_train.trust.with-repeat.jsonl", 253671)
 
 
 # def upload_self_es(line):

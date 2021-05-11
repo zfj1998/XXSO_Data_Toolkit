@@ -77,8 +77,17 @@ def construct_data_for_onmt(readf,writesrc,writetgt):
 def compare_str(str_a, str_b):
     '''
     对字符串分词并比较token集合的交集与两方的重合度
-    重合度都高于90%才认为是一样的str
+    重合度都高于99%才认为是一样的str
     '''
+    str_a = str_a.replace('\'', '')
+    str_a = str_a.replace('\"', '')
+    str_a = str_a.replace('`', '')
+    str_a = str_a.replace('@', '')
+    str_b = str_b.replace('\'', '')
+    str_b = str_b.replace('\"', '')
+    str_b = str_b.replace('`', '')
+    str_b = str_b.replace('@', '')
+
     set_a = set(convention_tokenize(str_a.lower()))
     set_b = set(convention_tokenize(str_b.lower()))
     inter = set_a & set_b
@@ -88,25 +97,26 @@ def compare_str(str_a, str_b):
         return True
     return False
 
-def check_match_ratio(matched_path, target_path):
-    '''
-    比对match的两个str，均去除单引号，然后看token集合的重复率为100%的有多少个
-    '''
-    matched_lines = linecache.getlines(matched_path)
-    count = 0
-    with open(target_path, 'w', encoding='utf-8') as f:
-        for line in matched_lines:
-            line_json = json.loads(line.strip())
-            gao_title = line_json['gao-title']
-            zfj_title = line_json['zfj-title']
-            zfj_title = zfj_title.replace('\'', '')
-            # gao_title = gao_title.replace('\'', '')
-            zfj_title = zfj_title.replace('\"', '')
-            # gao_title = gao_title.replace('\"', '')
-            zfj_title = zfj_title.replace('`', '')
-            zfj_title = zfj_title.replace('@', '')
-            if compare_str(zfj_title, gao_title):
-                f.write(line)
+# def check_match_ratio(matched_path, target_path):
+#     '''
+#     比对match的两个str，均去除单引号，然后看token集合的重复率为100%的有多少个
+#     主要是为了进行二次match，防止出现漏网之鱼
+#     '''
+#     matched_lines = linecache.getlines(matched_path)
+#     count = 0
+#     with open(target_path, 'w', encoding='utf-8') as f:
+#         for line in matched_lines:
+#             line_json = json.loads(line.strip())
+#             gao_title = line_json['gao-title']
+#             zfj_title = line_json['zfj-title']
+#             zfj_title = zfj_title.replace('\'', '')
+#             # gao_title = gao_title.replace('\'', '')
+#             zfj_title = zfj_title.replace('\"', '')
+#             # gao_title = gao_title.replace('\"', '')
+#             zfj_title = zfj_title.replace('`', '')
+#             zfj_title = zfj_title.replace('@', '')
+#             if compare_str(zfj_title, gao_title):
+#                 f.write(line)
 
 def extract_matched_data(matching_basis, zfj_file, gao_code_file, gao_title_file, zfj_target, gao_target):
     '''
@@ -163,20 +173,20 @@ def split_dataset_by_difficulty():
     pass
 
 if __name__ == '__main__':
-    source_path = './data/dataset/all/python-a1-s2-len-lte-1000-match-gao.{}.jsonl'
-    target_path = './data/dataset/codebert.python.a1s2.both.lte1000.match-gao.{}.jsonl'
-    onmt_src_path = './data/dataset/src.{}.python.a1s2.both.lte1000.match-gao.txt'
-    onmt_tgt_path = './data/dataset/tgt.{}.python.a1s2.both.lte1000.match-gao.txt'
+    source_path = './data/dataset/all/java-a1-s1-len-lte-1000-match-gao-code-only.{}.jsonl'
+    target_path = './data/dataset/codebert.java.a1s1.both.lte1000.match-gao-code-only.{}.jsonl'
+    onmt_src_path = './data/dataset/src.{}.java.a1s1.both.lte1000.match-gao-code-only.txt'
+    onmt_tgt_path = './data/dataset/tgt.{}.java.a1s1.both.lte1000.match-gao-code-only.txt'
     for mode in ['valid', 'test', 'train']:
         construct_data_for_codebert(source_path.format(mode), target_path.format(mode), False, False)
         construct_data_for_onmt(target_path.format(mode), onmt_src_path.format(mode), onmt_tgt_path.format(mode))
     # check_match_ratio('./data/Gao/python/a1s2_matched_tgt_train.jsonl', './data/Gao/python/a1s2_matched_tgt_train.trust.jsonl')
-    matching_basis = './data/Gao/python/a1s2_matched_tgt_train.trust.with-repeat.jsonl'
-    zfj_file = "./data/dataset/all/python-a1-s2-len-lte-1000.jsonl"
-    gao_code_file = './data/Gao/python/src-train-test.txt'
-    gao_title_file = './data/Gao/python/tgt-train-test.txt'
-    zfj_target = "./data/dataset/all/python-a1-s2-len-lte-1000-match-gao.jsonl"
-    gao_target = "./data/dataset/all/python-a1-s2-len-lte-1000-match-gao-code-only.jsonl"
+    matching_basis = './data/Gao/java/a1s1_matched_tgt_train.trust.with-repeat.jsonl'
+    zfj_file = "./data/dataset/all/java-a1-s1-len-lte-1000.jsonl"
+    gao_code_file = './data/Gao/java/src-train-test.txt'
+    gao_title_file = './data/Gao/java/tgt-train-test.txt'
+    zfj_target = "./data/dataset/all/java-a1-s1-len-lte-1000-match-gao.jsonl"
+    gao_target = "./data/dataset/all/java-a1-s1-len-lte-1000-match-gao-code-only.jsonl"
     # extract_matched_data(matching_basis, zfj_file, gao_code_file, gao_title_file, zfj_target, gao_target)
 
 
