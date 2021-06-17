@@ -10,18 +10,20 @@ from tqdm import tqdm
 
 from log_config import LOGGING_DIC
 from file_helper import for_line_in, append_file
-from other_utils import split_things, compare_str
+from other_utils import split_things, compare_str, convention_tokenize
 
 config.dictConfig(LOGGING_DIC)
 # logger = getLogger('production') # 生产环境使用的logger，输出内容到文件
 logger = getLogger('console_info') # 测试使用的logger，输出内容到终端
 # INDEX_NAME = 'so_posts_all' # elastic数据库名称
-INDEX_NAME = 'java_a1s1_lte1000' # elastic数据库名称
-DOC_TYPE = 'java' # elastic表名
+# INDEX_NAME = 'java_a1s1_lte1000' # elastic数据库名称
+INDEX_NAME = 'python_match_gao_html_v2' # elastic数据库名称
+# INDEX_NAME = 'python_a1s2_lte1000' # elastic数据库名称
+DOC_TYPE = 'python' # elastic表名
 FAILED_RECORD = 'failed.txt' # 上传失败的记录文件
 BULK_SIZE = 100 # 批量上传的条数
 # TOTAL_SIZE = 1597777 # 要上传的数据总量
-TOTAL_SIZE = 339395 # 要上传的数据总量
+TOTAL_SIZE = 34013 # 要上传的数据总量
 HOST = '192.168.40.250' # elastic数据库ip地址
 
 def get_connection():
@@ -77,6 +79,24 @@ def upload_json(lines, es):
     last_id = bulk_actions[-1]['_id']
     logger.info(f'lines with identifiers from {first_id} to {last_id} have been successfully uploaded')
 
+def upload_match_gao(lines, line_no, es):
+    '''上传match_gao json数据集，批量版'''
+    bulk_actions = []
+    for i, line in enumerate(lines):
+        line_json = json.loads(line.strip())
+        title = ' '.join(line_json['docstring_tokens'])
+        body = ' '.join(line_json['code_tokens'])
+        action = {
+            '_index': INDEX_NAME,
+            '_type': DOC_TYPE,
+            '_source': {
+                'title': title,
+                'body': body
+            }
+        }
+        bulk_actions.append(action)
+    result = helpers.bulk(es, bulk_actions, ignore=409)
+
 def delete_index(es):
     '''删除数据库'''
     result = es.indices.delete(index=INDEX_NAME, ignore=[400, 404])
@@ -87,14 +107,17 @@ def query_index(es, field, support_str):
     根据特定field和文本查询，返回最接近的前三条结果field中的内容
     exact match 的分数从 10+ 到 50+ 不等，越长的文本分数越高
     '''
-    data ={'query': {'match': {field: support_str }}}
-    result = es.search(index=INDEX_NAME, doc_type=DOC_TYPE, body=data)
-    top_three = result['hits']['hits'][:3]
+    # data ={'query': {'match': {field: {'query': support_str, "analyzer": "standard"} }}, 'sort':{'_score':{'order':'asc'}}}
+    data ={'query': {'match': {field: {'query': support_str, "analyzer": "standard"} }}}
+    result = es.search(index=INDEX_NAME, doc_type=DOC_TYPE, body=data, size=10)
+    top_three = result['hits']['hits']
     top_three_simple = \
         [{ 
             'id': hit['_id'],
             'score': hit['_score'],
-            field: hit['_source'][field]
+            # field: hit['_source'][field]
+            'title': hit['_source']['title'],
+            'body': hit['_source']['body']
         } for hit in top_three]
     # logger.info(top_three_simple)
     return top_three_simple
@@ -106,15 +129,14 @@ def query_file(es,read_file_path,write_file_path):
     with open(read_file_path, mode='r', encoding='utf-8') as fr:
         with open(write_file_path,mode="w",encoding="utf-8") as fw:
             for line in fr:
-                line_dict = {} 
+                line_dict = {}
                 # line_dict["title"] = line
                 line_dict["code"] = line
                 # line_dict["top_three_simple"] = query_index(es,"title",line)
-                line_dict["top_three_simple"] = query_index(es,"body",line)
+                line_dict["top_three_simple"] = query_index(es, "body", line)
 
                 line_json = json.dumps(line_dict)
-
-                fw.write(line_json + '\n') 
+                fw.write(line_json + '\n')
             fw.close()
 
 def query_jsonfile(es,read_file_path_json,read_file_path_code,write_file_path):
@@ -133,6 +155,7 @@ def query_jsonfile(es,read_file_path_json,read_file_path_code,write_file_path):
 
                 line_json = json.dumps(line_dict)
                 fw.write(line_json+"\n")
+
 
 def match_and_write(es, source_path, target_path, length):
     '''
@@ -164,17 +187,84 @@ def match_and_write(es, source_path, target_path, length):
             w_f.write(json.dumps(line_dict, ensure_ascii=False)+'\n')
     t.close()
 
+def match_similar_and_write(es, source_path, target_path, length):
+    '''
+    查询数据库，把排名第2的写入文件
+    '''
+    t = tqdm(total=length)
+    with open(source_path, mode='r', encoding='utf-8') as r_f,\
+        open(target_path, mode='w', encoding='utf-8') as w_f:
+        line_no = 0
+        for line in r_f:
+            # r_f为match-gao的train json文件
+            line_no += 1
+            line = line.strip()
+            # line_json = json.loads(line)
+            # title = ' '.join(line_json['docstring_tokens'])
+            title = line
+            queryed = query_index(es, 'title', title)
+            title_first = queryed[0]['title']
+            if title_first == title:
+                title_first = queryed[1]['title']
+            w_f.write(f'{title_first}\n')
+            t.update(1)
+    t.close()
+
+def match_similar_json_and_write(es, source_path, target_path, ref_path, length):
+    '''
+    查询数据库，把排名第2的写入文件
+    '''
+    t = tqdm(total=length)
+    with open(source_path, mode='r', encoding='utf-8') as r_f,\
+        open(target_path, mode='w', encoding='utf-8') as w_f,\
+        open(ref_path, mode='w', encoding='utf-8') as e_f:
+        line_no = 0
+        for line in r_f:
+            # r_f为match-gao的train json文件
+            line_no += 1
+            line = line.strip()
+            line_json = json.loads(line)
+            title = ' '.join(line_json['docstring_tokens'])
+            body = ' '.join(line_json['code_tokens'])
+            queryed = query_index(es, 'body', body)
+            title_first = queryed[0]['title']
+            # if title_first == title:
+            #     title_first = queryed[1]['title']
+            w_f.write(f'{title_first}\n')
+            e_f.write(f'{title}\n')
+            t.update(1)
+    t.close()
+
 if __name__ == '__main__':
     es = get_connection()
     # initialize(es)
     # query_file(es,"/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.json")
     # query_jsonfile(es,"notmatch-pytgt-train.json","/home/zzm/sdb2_zzm/Code2Que-master/Code2Que-data/pydata/src-train.txt","notmatch-pysrc-train.json")
-    # query_index(es, 'title', 'how to check set of files conform to a naming scheme')
-    # query_index(es, 'body', 'how to check set of files conform to a naming scheme')
-    # for_line_in("data/dataset/all/java-a1-s1-len-lte-1000.jsonl", TOTAL_SIZE, BULK_SIZE, upload_json, es)
+    # for_line_in("data/dataset/Python/python-match-gao-html.train.jsonl", TOTAL_SIZE, BULK_SIZE, upload_match_gao, es)
     # match_and_write(es, "data/Gao/python/tgt-train-test.txt", "data/Gao/python/a1s2_matched_tgt_train.trust.jsonl", 189936)
-    match_and_write(es, "data/Gao/java/tgt-train-test.txt", "data/Gao/java/a1s1_matched_tgt_train.trust.with-repeat.jsonl", 253671)
+    # match_and_write(es, "data/Gao/java/tgt-train-test.txt", "data/Gao/java/a1s1_matched_tgt_train.trust.with-repeat.jsonl", 253671)
 
+    for i in range(100):
+        line = linecache.getline('data/dataset/Python/python-match-gao-html.train.jsonl', i+300).strip()
+        line_json = json.loads(line)
+        body = ' '.join(line_json['code_tokens'])
+        title = ' '.join(line_json['docstring_tokens'])
+
+        top_three_simple = query_index(es, 'body', body)
+        # top_three_simple = query_index(es, 'title', 'How to check for a button press while another tk . button function runs ?')
+        print(title)
+        print(body)
+        ipdb.set_trace()
+        print(top_three_simple)
+        
+
+    # match_similar_and_write(es, 'data/dataset/Python/codebert.python.a1s2.both.lte1000.match-gao.valid.jsonl', 'python-match-gao.train.retrieve.jsonl', 34013)
+    # match_similar_json_and_write(es, 'data/dataset/Python/codebert.python.a1s2.both.lte1000.match-gao.valid.jsonl', 'python-match-gao.valid.bodyinbody-retrieve.jsonl',  'python-match-gao.valid.bodyinbody-gold.jsonl', 2000)
+
+'''
+查看所有索引 http://192.168.40.250:9200/_cat/indices?v
+
+'''
 
 # def upload_self_es(line):
 #     '''废弃不用

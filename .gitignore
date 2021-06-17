@@ -4,3 +4,4 @@ data/
 logs/
 *.json
 .DS_Store
+class_data/

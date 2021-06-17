@@ -7,19 +7,18 @@ def for_line_in(file_path, length, bulk_size, func, *args, **kwargs):
     '''
     with open(file_path, mode='r', encoding='utf-8') as f:
         t = tqdm(total=length)
-        # line_no = 1
+        line_no = 1
         lines = []
         for line in f:
             if len(lines) == bulk_size:
-                func(lines, *args, **kwargs)
+                func(lines, line_no, *args, **kwargs)
                 t.update(bulk_size)
                 lines = []
-                # line_no += bulk_size
+                line_no += bulk_size
             lines.append(line)
         if len(lines) != 0:
-            func(lines, *args, **kwargs)
+            func(lines, line_no, *args, **kwargs)
             t.update(len(lines))
-            # line_no += len(lines)
         t.close()
 
 def append_file(data):

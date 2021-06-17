@@ -57,7 +57,7 @@ LOGGING_DIC = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',  # 保存到文件
-            'formatter': 'standard',
+            'formatter': 'test',
             'filename': LOGFILE_PATH,
             'encoding': 'utf-8',
         },
